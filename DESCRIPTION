@@ -1,0 +1,19 @@
+Package: shinyforest
+Type: Package
+Version: 0.1.1
+Title: Visualizing PPforest objects
+Author: Natalia da Silva, Eun-Kyung Lee, Di Cook
+Maintainer: Natalia da Silva <natalia@iesta.edu.uy>
+Description: Visualization tools to explore PPforest objects (projection pursuit forest algorithm for supervised classification).
+License: GPL (>= 2)
+URL: https://github.com/natydasilva/PPforest
+LazyData: yes
+Depends:
+    R (>= 3.2.0)
+Imports:
+    PPforest,
+    magrittr,
+    ggplot2,
+    dplyr
+RoxygenNote: 6.0.1
+
