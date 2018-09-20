@@ -13,102 +13,109 @@
 #' pprf.crab <- PPforest::PPforest(data = crab, std =TRUE, class = "Type",
 #'  size.tr = 1, m = 100, size.p = .5, PPmethod = 'LDA')
 #' str(ternary_str(pprf.crab, id = c(1, 2, 3), sp = 3, dx = 1, dy = 2) )
-ternary_str <-  function(ppf, id, sp, dx, dy){
+ternary_str <-  function(ppf, id, sp, dx, dy) {
   x <- NULL
   y <- NULL
   
-f.helmert <- function(d)
-{
-  helmert <- rep(1 / sqrt(d), d)
-  for (i in 1:(d - 1))
+  f.helmert <- function(d)
   {
-    x <- rep(1 / sqrt(i * (i + 1)), i)
-    x <- c(x, -i / sqrt(i * (i + 1)))
-    x <- c(x, rep(0, d - i - 1))
-    helmert <- rbind(helmert, x)
+    helmert <- rep(1 / sqrt(d), d)
+    for (i in 1:(d - 1))
+    {
+      x <- rep(1 / sqrt(i * (i + 1)), i)
+      x <- c(x,-i / sqrt(i * (i + 1)))
+      x <- c(x, rep(0, d - i - 1))
+      helmert <- rbind(helmert, x)
+    }
+    
+    return(helmert)
   }
   
-  return(helmert)
-}
-
-makePairs <- function(dat, id) {
-  aux <- dat[ ,-c(1, 2) ]
-  
-  d <- aux[, id]
-  grid <- expand.grid(x = id, y = id)
-  grid <- subset(grid, x != y)
-  all <- do.call("rbind", lapply(1:nrow(grid), function(i) {
-    xcol <- grid[i, "x"]
-    ycol <- grid[i, "y"]
-    data.frame(
-      Class = dat[, 1],
-      ids = dat[, 2],
-      x = dat[, xcol+2],
-      y = dat[, ycol+2],
-      pair = paste(grid[i, ], collapse = '-')
-    )
-  }))
-  
-  all
-}
-
-#ppf PPforest object
-#id select proj directions
-ternarydata <- function(ppf, id){
-  n.class <- ppf$train %>% dplyr::select_(ppf$class.var) %>% unique() %>% nrow()
-  projct <- t(f.helmert(nrow(unique(data.frame(ppf$train[, ppf$class.var]))))[-1,])
-  
-  dat3 <-
-    data.frame(
-      Class = ppf$train[, ppf$class.var],
-      ids = 1:nrow(ppf$train),
-      proj.vote = as.matrix(ppf$votes) %*% projct
-    )
-  
-  ##with 3 or less classes
-  empt <- rep(1:nrow(dat3), 3)
- 
-  if (n.class > 3) {
-    gg1 <-  makePairs(dat3,id)
+  makePairs <- function(dat, id) {
+    aux <- dat[, -c(1, 2)]
+    
+    d <- aux[, id]
+    grid <- expand.grid(x = id, y = id)
+    grid <- subset(grid, x != y)
+    all <- do.call("rbind", lapply(1:nrow(grid), function(i) {
+      xcol <- grid[i, "x"]
+      ycol <- grid[i, "y"]
+      data.frame(
+        Class = dat[, 1],
+        ids = dat[, 2],
+        x = dat[, xcol + 2],
+        y = dat[, ycol + 2],
+        pair = paste(grid[i,], collapse = '-')
+      )
+    }))
+    
+    all
   }
   
-  gg1 <-  makePairs(dat3, id )
+  #ppf PPforest object
+  #id select proj directions
+  ternarydata <- function(ppf, id) {
+    n.class <-
+      ppf$train %>% dplyr::select_(ppf$class.var) %>% unique() %>% nrow()
+    projct <-
+      t(f.helmert(nrow(unique(
+        data.frame(ppf$train[, ppf$class.var])
+      )))[-1, ])
+    
+    dat3 <-
+      data.frame(
+        Class = ppf$train[, ppf$class.var],
+        ids = 1:nrow(ppf$train),
+        proj.vote = as.matrix(ppf$votes) %*% projct
+      )
+    
+    ##with 3 or less classes
+    empt <- rep(1:nrow(dat3), 3)
+    
+    if (n.class > 3) {
+      gg1 <-  makePairs(dat3, id)
+    }
+    
+    gg1 <-  makePairs(dat3, id)
+    
+    return(gg1)
+  }
   
-  return(gg1)
-}
-
-
-f_composition <- function(data) {
-  d <- dim(data)[2]
-  hm <- f.helmert(d)
-  x <- data - matrix(1 / d, dim(data)[1], d)
-  return((x %*% t(hm))[,-1])
-}
-
-simplex <- function(sp) {
-  vert <- f_composition(diag(sp + 1))
-  colnames(vert) <- paste0("d", 1:ncol(vert))
   
-  wires <-
-    do.call(expand.grid, list(c(1:nrow(vert)), c(1:nrow(vert))))
+  f_composition <- function(data) {
+    d <- dim(data)[2]
+    hm <- f.helmert(d)
+    x <- data - matrix(1 / d, dim(data)[1], d)
+    return((x %*% t(hm))[, -1])
+  }
   
-  structure(list(points = vert,
-                 edges = wires[!(wires[, 1] == wires[, 2]),]))
-}
-
-##ternary plot str
-
+  simplex <- function(sp) {
+    vert <- f_composition(diag(sp + 1))
+    colnames(vert) <- paste0("d", 1:ncol(vert))
+    
+    wires <-
+      do.call(expand.grid, list(c(1:nrow(vert)), c(1:nrow(vert))))
+    
+    structure(list(points = vert,
+                   edges = wires[!(wires[, 1] == wires[, 2]), ]))
+  }
+  
+  ##ternary plot str
+  
   s <- simplex(sp)
   pts <- data.frame(s$points)
-
-  gg1 <- ternarydata(ppf,id)
   
-  edg <- data.frame(x1=pts[,dx][s$edges[,1]], x2=pts[,dx][s$edg[,2]],
- 
-                                       y1=pts[,dy][s$edg[,1]], y2=pts[,dy][s$edg[,2]])
-
-
-return( list(gg1, edg) )  
+  gg1 <- ternarydata(ppf, id)
+  
+  edg <-
+    data.frame(
+      x1 = pts[, dx][s$edges[, 1]],
+      x2 = pts[, dx][s$edg[, 2]],
+      
+      y1 = pts[, dy][s$edg[, 1]],
+      y2 = pts[, dy][s$edg[, 2]]
+    )
+  
+  
+  return(list(gg1, edg))
 }
-
-
